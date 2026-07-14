@@ -35,7 +35,7 @@ async function main() {
       SimpleQueueType.Transient,
     );
   } catch (err) {
-    console.log("Error publishing message: ", err);
+    console.log("Error declaring queue: ", err);
   }
 }
 

@@ -1,6 +1,7 @@
 import amqp from "amqplib";
 import { publishJSON } from "../internal/pubsub/publish.js";
 import { ExchangePerilDirect, PauseKey } from "../internal/routing/routing.js";
+import { getInput, printServerHelp } from "../internal/gamelogic/gamelogic.js";
 
 async function main() {
   console.log("Starting Peril server...");
@@ -21,14 +22,40 @@ async function main() {
     });
   });
 
+  printServerHelp();
+
   const publishCh = await conn.createConfirmChannel();
 
-  try {
-    await publishJSON(publishCh, ExchangePerilDirect, PauseKey, {
-      isPaused: true,
-    });
-  } catch (err) {
-    console.log("Error publishing message: ", err);
+  while (true) {
+    const inputs = await getInput();
+    if (inputs.length === 0) {
+      continue;
+    }
+    const cmd = inputs[0];
+    if (cmd === "pause") {
+      console.log("sending a pause message");
+      try {
+        await publishJSON(publishCh, ExchangePerilDirect, PauseKey, {
+          isPaused: true,
+        });
+      } catch (err) {
+        console.log("Error publishing message: ", err);
+      }
+    } else if (cmd === "resume") {
+      console.log("sending a resume message");
+      try {
+        await publishJSON(publishCh, ExchangePerilDirect, PauseKey, {
+          isPaused: false,
+        });
+      } catch (err) {
+        console.log("Error publishing message: ", err);
+      }
+    } else if (cmd === "quit") {
+      console.log("exiting");
+      process.exit(0);
+    } else {
+      console.log("did not understand command, try again");
+    }
   }
 }
 
