@@ -1,7 +1,16 @@
 import amqp from "amqplib";
-import { clientWelcome } from "../internal/gamelogic/gamelogic.js";
+import {
+  clientWelcome,
+  commandStatus,
+  getInput,
+  printClientHelp,
+  printQuit,
+} from "../internal/gamelogic/gamelogic.js";
 import { declareAndBind, SimpleQueueType } from "../internal/pubsub/consume.js";
 import { ExchangePerilDirect, PauseKey } from "../internal/routing/routing.js";
+import { GameState } from "../internal/gamelogic/gamestate.js";
+import { commandSpawn } from "../internal/gamelogic/spawn.js";
+import { commandMove } from "../internal/gamelogic/move.js";
 
 async function main() {
   console.log("Starting Peril client...");
@@ -24,8 +33,6 @@ async function main() {
 
   const userName = await clientWelcome();
 
-  // const publishCh = await conn.createConfirmChannel();
-  //
   try {
     await declareAndBind(
       conn,
@@ -36,6 +43,41 @@ async function main() {
     );
   } catch (err) {
     console.log("Error declaring queue: ", err);
+  }
+
+  const gs = new GameState(userName);
+
+  while (true) {
+    const words = await getInput();
+    if (words.length === 0) {
+      continue;
+    }
+    const command = words[0];
+    if (command === "move") {
+      try {
+        commandMove(gs, words);
+      } catch (err) {
+        console.log((err as Error).message);
+      }
+    } else if (command === "status") {
+      commandStatus(gs);
+    } else if (command === "spawn") {
+      try {
+        commandSpawn(gs, words);
+      } catch (err) {
+        console.log((err as Error).message);
+      }
+    } else if (command === "help") {
+      printClientHelp();
+    } else if (command === "quit") {
+      printQuit();
+      process.exit(0);
+    } else if (command === "spam") {
+      console.log("Spamming not allowed yet!");
+    } else {
+      console.log("Unknown command");
+      continue;
+    }
   }
 }
 
