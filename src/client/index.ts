@@ -6,11 +6,18 @@ import {
   printClientHelp,
   printQuit,
 } from "../internal/gamelogic/gamelogic.js";
-import { declareAndBind, SimpleQueueType } from "../internal/pubsub/consume.js";
-import { ExchangePerilDirect, PauseKey } from "../internal/routing/routing.js";
+import { SimpleQueueType, subscribeJSON } from "../internal/pubsub/consume.js";
+import {
+  ArmyMovesPrefix,
+  ExchangePerilDirect,
+  ExchangePerilTopic,
+  PauseKey,
+} from "../internal/routing/routing.js";
 import { GameState } from "../internal/gamelogic/gamestate.js";
 import { commandSpawn } from "../internal/gamelogic/spawn.js";
 import { commandMove } from "../internal/gamelogic/move.js";
+import { handlerMove, handlerPause } from "./handlers.js";
+import { publishJSON } from "../internal/pubsub/publish.js";
 
 async function main() {
   console.log("Starting Peril client...");
@@ -32,20 +39,26 @@ async function main() {
   });
 
   const userName = await clientWelcome();
-
-  try {
-    await declareAndBind(
-      conn,
-      ExchangePerilDirect,
-      `${PauseKey}.${userName}`,
-      PauseKey,
-      SimpleQueueType.Transient,
-    );
-  } catch (err) {
-    console.log("Error declaring queue: ", err);
-  }
-
   const gs = new GameState(userName);
+  const publishCh = await conn.createConfirmChannel();
+
+  await subscribeJSON(
+    conn,
+    ExchangePerilDirect,
+    `${PauseKey}.${userName}`,
+    PauseKey,
+    SimpleQueueType.Transient,
+    handlerPause(gs),
+  );
+
+  await subscribeJSON(
+    conn,
+    ExchangePerilTopic,
+    `${ArmyMovesPrefix}.${userName}`,
+    ArmyMovesPrefix + ".*",
+    SimpleQueueType.Transient,
+    handlerMove(gs),
+  );
 
   while (true) {
     const words = await getInput();
@@ -55,7 +68,8 @@ async function main() {
     const command = words[0];
     if (command === "move") {
       try {
-        commandMove(gs, words);
+        const am = commandMove(gs, words);
+        publishJSON(publishCh, ExchangePerilTopic, `${ArmyMovesPrefix}.${userName}`, am);
       } catch (err) {
         console.log((err as Error).message);
       }
