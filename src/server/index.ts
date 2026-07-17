@@ -7,7 +7,8 @@ import {
   PauseKey,
 } from "../internal/routing/routing.js";
 import { getInput, printServerHelp } from "../internal/gamelogic/gamelogic.js";
-import { declareAndBind, SimpleQueueType } from "../internal/pubsub/consume.js";
+import { SimpleQueueType, subscribeMsgPack } from "../internal/pubsub/consume.js";
+import { handlerLog } from "./handlers.js";
 
 async function main() {
   console.log("Starting Peril server...");
@@ -28,17 +29,14 @@ async function main() {
     });
   });
 
-  try {
-    await declareAndBind(
-      conn,
-      ExchangePerilTopic,
-      GameLogSlug,
-      GameLogSlug + ".*",
-      SimpleQueueType.Durable,
-    );
-  } catch (err) {
-    console.error("Error declaring queue: ", err);
-  }
+  await subscribeMsgPack(
+    conn,
+    ExchangePerilTopic,
+    GameLogSlug,
+    GameLogSlug + ".*",
+    SimpleQueueType.Durable,
+    handlerLog,
+  );
 
   printServerHelp();
 

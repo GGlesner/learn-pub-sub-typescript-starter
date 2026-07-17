@@ -8,6 +8,7 @@ import { publishJSON } from "../internal/pubsub/publish.js";
 import { ExchangePerilTopic, WarRecognitionsPrefix } from "../internal/routing/routing.js";
 import { handleWar, WarOutcome } from "../internal/gamelogic/war.js";
 import { publishGameLog } from "./index.js";
+import { writeLog, type GameLog } from "../internal/gamelogic/logs.js";
 
 export function handlerPause(gs: GameState): (ps: PlayingState) => ACKType {
   return (ps: PlayingState) => {

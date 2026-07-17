@@ -1,4 +1,5 @@
 import amqp, { type Channel, type ChannelModel } from "amqplib";
+import { decode } from "@msgpack/msgpack";
 
 export enum SimpleQueueType {
   Durable,
@@ -9,6 +10,9 @@ export enum ACKType {
   NackRequeue = "nacked requeued",
   NackDiscard = "nacked discared",
 }
+
+export type Handler<T> = (data: T) => ACKType | Promise<ACKType>;
+export type Deserializer<T> = (data: Buffer) => T;
 
 export async function declareAndBind(
   conn: ChannelModel,
@@ -30,39 +34,82 @@ export async function declareAndBind(
   return [ch, queue];
 }
 
-export async function subscribeJSON<T>(
-  conn: amqp.ChannelModel,
+export async function subscribe<T>(
+  conn: ChannelModel,
   exchange: string,
   queueName: string,
   key: string,
   queueType: SimpleQueueType,
-  handler: (data: T) => ACKType | Promise<ACKType>,
+  handler: Handler<T>,
+  deserializer: Deserializer<T>,
 ): Promise<void> {
   const [ch, q] = await declareAndBind(conn, exchange, queueName, key, queueType);
-  const _ = await ch.consume(q.queue, async (m) => {
-    if (!m) return;
 
-    let data: T;
-    try {
-      data = JSON.parse(m.content.toString());
-    } catch (err) {
-      console.error("Could not unmarshal message: ", err);
-      return;
-    }
-    try {
-      const ack = await handler(data);
-      switch (ack) {
-        case ACKType.Ack:
-          return ch.ack(m);
-        case ACKType.NackRequeue:
-          return ch.nack(m, false, true);
-        case ACKType.NackDiscard:
-          return ch.nack(m, false, false);
+  const _ = await ch.consume(
+    q.queue,
+    async (m) => {
+      if (!m) return;
+
+      let data: T;
+      try {
+        data = deserializer(m.content);
+      } catch (err) {
+        console.error("Could not deserialize message: ", err);
+        return;
       }
-    } catch (err) {
-      console.error("Error handling message: ", err);
-      ch.nack(m, false, false);
-      return;
-    }
-  });
+      try {
+        const ack = await handler(data);
+        switch (ack) {
+          case ACKType.Ack:
+            return ch.ack(m);
+          case ACKType.NackRequeue:
+            return ch.nack(m, false, true);
+          case ACKType.NackDiscard:
+            return ch.nack(m, false, false);
+        }
+      } catch (err) {
+        console.error("Error handling message: ", err);
+        return ch.nack(m, false, false);
+      }
+    },
+    { noAck: false },
+  );
+}
+
+export async function subscribeJSON<T>(
+  conn: ChannelModel,
+  exchange: string,
+  queueName: string,
+  key: string,
+  queueType: SimpleQueueType,
+  handler: Handler<T>,
+): Promise<void> {
+  return subscribe(
+    conn,
+    exchange,
+    queueName,
+    key,
+    queueType,
+    handler,
+    (data: Buffer) => JSON.parse(data.toString()) as T,
+  );
+}
+
+export async function subscribeMsgPack<T>(
+  conn: ChannelModel,
+  exchange: string,
+  queueName: string,
+  key: string,
+  queueType: SimpleQueueType,
+  handler: Handler<T>,
+) {
+  return subscribe(
+    conn,
+    exchange,
+    queueName,
+    key,
+    queueType,
+    handler,
+    (data: Buffer) => decode(data) as T,
+  );
 }
