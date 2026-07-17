@@ -21,6 +21,7 @@ import { commandMove } from "../internal/gamelogic/move.js";
 import { handlerMove, handlerPause, handlerWar } from "./handlers.js";
 import { publishJSON, publishMsgPack } from "../internal/pubsub/publish.js";
 import type { GameLog } from "../internal/gamelogic/logs.js";
+import { commandSpam } from "../internal/gamelogic/spam.js";
 
 export function publishGameLog(
   ch: ConfirmChannel,
@@ -53,14 +54,14 @@ async function main() {
     });
   });
 
-  const userName = await clientWelcome();
-  const gs = new GameState(userName);
+  const username = await clientWelcome();
+  const gs = new GameState(username);
   const publishCh = await conn.createConfirmChannel();
 
   await subscribeJSON(
     conn,
     ExchangePerilDirect,
-    `${PauseKey}.${userName}`,
+    `${PauseKey}.${username}`,
     PauseKey,
     SimpleQueueType.Transient,
     handlerPause(gs),
@@ -69,7 +70,7 @@ async function main() {
   await subscribeJSON(
     conn,
     ExchangePerilTopic,
-    `${ArmyMovesPrefix}.${userName}`,
+    `${ArmyMovesPrefix}.${username}`,
     ArmyMovesPrefix + ".*",
     SimpleQueueType.Transient,
     handlerMove(gs, publishCh),
@@ -93,7 +94,7 @@ async function main() {
     if (command === "move") {
       try {
         const am = commandMove(gs, words);
-        publishJSON(publishCh, ExchangePerilTopic, `${ArmyMovesPrefix}.${userName}`, am);
+        publishJSON(publishCh, ExchangePerilTopic, `${ArmyMovesPrefix}.${username}`, am);
       } catch (err) {
         console.log((err as Error).message);
       }
@@ -111,7 +112,14 @@ async function main() {
       printQuit();
       process.exit(0);
     } else if (command === "spam") {
-      console.log("Spamming not allowed yet!");
+      // console.log("Spamming not allowed yet!");
+      try {
+        commandSpam(words, (message: string) => {
+          publishGameLog(publishCh, username, message);
+        });
+      } catch (err) {
+        console.log((err as Error).message);
+      }
     } else {
       console.log("Unknown command");
       continue;

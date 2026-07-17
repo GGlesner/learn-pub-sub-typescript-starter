@@ -45,6 +45,8 @@ export async function subscribe<T>(
 ): Promise<void> {
   const [ch, q] = await declareAndBind(conn, exchange, queueName, key, queueType);
 
+  await ch.prefetch(1);
+
   const _ = await ch.consume(
     q.queue,
     async (m) => {
