@@ -38,6 +38,11 @@ async function main() {
     handlerLog,
   );
 
+  if (!process.stdin.isTTY) {
+    console.log("Non-interactive mode: skipping command input.");
+    return;
+  }
+
   printServerHelp();
 
   const publishCh = await conn.createConfirmChannel();

@@ -4,8 +4,8 @@ export async function commandSpam(
   words: string[],
   publisher: (m: string) => Promise<void> | void,
 ): Promise<void> {
-  if (words.length < 2 || words[1] === undefined) {
-    throw new Error("usage: spam <number>");
+  if (words.length < 2 || !words[1]) {
+    throw new Error("usage: spam <n>");
   }
   let n: number;
   n = parseInt(words[1], 10);

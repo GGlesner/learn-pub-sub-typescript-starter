@@ -97,6 +97,7 @@ async function main() {
         publishJSON(publishCh, ExchangePerilTopic, `${ArmyMovesPrefix}.${username}`, am);
       } catch (err) {
         console.log((err as Error).message);
+        continue;
       }
     } else if (command === "status") {
       commandStatus(gs);
@@ -114,11 +115,12 @@ async function main() {
     } else if (command === "spam") {
       // console.log("Spamming not allowed yet!");
       try {
-        commandSpam(words, (message: string) => {
+        await commandSpam(words, (message: string) => {
           publishGameLog(publishCh, username, message);
         });
       } catch (err) {
         console.log((err as Error).message);
+        continue;
       }
     } else {
       console.log("Unknown command");
