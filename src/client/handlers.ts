@@ -33,9 +33,9 @@ export function handlerMove(
           };
           try {
             await publishJSON(ch, ExchangePerilTopic, `${WarRecognitionsPrefix}.${am.player}`, rw);
+            return ACKType.Ack;
           } catch (err) {
             console.error("Error publishing war recognition: ", err);
-          } finally {
             return ACKType.NackRequeue;
           }
         default:
