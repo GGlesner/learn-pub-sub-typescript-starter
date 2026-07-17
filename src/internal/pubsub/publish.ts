@@ -1,7 +1,7 @@
 import { encode } from "@msgpack/msgpack";
 import type { ConfirmChannel } from "amqplib";
 
-export async function publishJSON<T>(
+export function publishJSON<T>(
   ch: ConfirmChannel,
   exchange: string,
   routingKey: string,
@@ -27,7 +27,7 @@ export async function publishJSON<T>(
   });
 }
 
-export async function publishMsgPack<T>(
+export function publishMsgPack<T>(
   ch: ConfirmChannel,
   exchange: string,
   routingKey: string,

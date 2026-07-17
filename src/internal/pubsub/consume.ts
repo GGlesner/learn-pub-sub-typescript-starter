@@ -1,4 +1,4 @@
-import amqp, { type Channel } from "amqplib";
+import amqp, { type Channel, type ChannelModel } from "amqplib";
 
 export enum SimpleQueueType {
   Durable,
@@ -11,7 +11,7 @@ export enum ACKType {
 }
 
 export async function declareAndBind(
-  conn: amqp.ChannelModel,
+  conn: ChannelModel,
   exchange: string,
   queueName: string,
   key: string,
@@ -51,7 +51,6 @@ export async function subscribeJSON<T>(
     }
     try {
       const ack = await handler(data);
-      console.log(ack);
       switch (ack) {
         case ACKType.Ack:
           return ch.ack(m);
